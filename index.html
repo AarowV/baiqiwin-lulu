@@ -28,6 +28,13 @@ a{color:inherit;text-decoration:none}button,input,textarea{font:inherit}button{c
 @media(max-width:600px){.star-list{grid-template-columns:1fr}}
 .bm-subs{padding:0 16px 16px}.bm-sub{border:1px solid var(--line);border-radius:12px;margin-bottom:10px;overflow:hidden}.bm-sub summary{cursor:pointer;padding:12px 14px;font-weight:600;display:flex;justify-content:space-between;align-items:center;gap:12px;list-style:none;background:var(--soft)}.bm-sub summary::-webkit-details-marker{display:none}.bm-list{list-style:none;margin:0;padding:10px 14px;display:grid;grid-template-columns:1fr 1fr;gap:6px 18px}.bm-item{display:flex;justify-content:space-between;gap:10px;font-size:12px;padding:6px 0;border-bottom:1px dashed var(--line)}.bm-item a{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.bm-domain{color:var(--muted);font-size:10px;white-space:nowrap}
 @media(max-width:600px){.bm-list{grid-template-columns:1fr}}
+.cursor-glow{position:fixed;width:240px;height:240px;left:0;top:0;pointer-events:none;z-index:5;border-radius:50%;background:radial-gradient(circle,rgba(185,151,91,.22),rgba(31,58,95,.10) 42%,transparent 70%);transform:translate(-50%,-50%);opacity:0;transition:opacity .3s}
+.cursor-glow.on{opacity:1}.cursor-glow.big{width:340px;height:340px}
+.cursor-dot{position:fixed;width:9px;height:9px;left:0;top:0;pointer-events:none;z-index:6;border-radius:50%;background:var(--gold);border:2px solid var(--accent);transform:translate(-50%,-50%);opacity:0;transition:opacity .3s}
+.cursor-dot.on{opacity:1}
+.trail-dot{position:fixed;pointer-events:none;z-index:5;border-radius:50%;transform:translate(-50%,-50%);animation:trailFade .7s ease-out forwards}
+@keyframes trailFade{to{transform:translate(-50%,-50%) scale(0);opacity:0}}
+@media(hover:none),(prefers-reduced-motion:reduce){.cursor-glow,.cursor-dot,.trail-dot{display:none}}
 </style>
 </head>
 <body>
@@ -142,6 +149,20 @@ starSearch.addEventListener('input',()=>{if(!starSearch.value.trim()){starGroups
 const bmSearch=document.getElementById('bmSearch'), bmTop=[...document.querySelectorAll('#bmGroups .star-group')], bmEmpty=document.getElementById('bmEmpty');
 function applyBmSearch(){let q=bmSearch.value.trim().toLowerCase(),shown=0;bmTop.forEach(g=>{let subs=[...g.querySelectorAll('.bm-sub')],gvis=0;subs.forEach(s=>{let items=[...s.querySelectorAll('.bm-item')],vis=0;items.forEach(it=>{let ok=!q||it.dataset.search.includes(q);it.style.display=ok?'':'none';if(ok)vis++});s.style.display=vis?'':'none';if(vis){s.open=true;gvis+=vis}});g.style.display=gvis?'':'none';if(gvis){g.open=true;shown+=gvis}});bmEmpty.style.display=shown?'none':'block'}
 bmSearch.addEventListener('input',()=>{if(!bmSearch.value.trim()){bmTop.forEach((g,i)=>{g.style.display='';g.open=i===0;[...g.querySelectorAll('.bm-sub')].forEach((s,j)=>{s.style.display='';s.open=(i===0&&j===0);[...s.querySelectorAll('.bm-item')].forEach(it=>it.style.display='')})});bmEmpty.style.display='none'}else applyBmSearch()});
+
+/* Mouse-follow effect: gold glow + small trailing dots, academic navy/gold. */
+if(window.matchMedia('(hover:hover) and (pointer:fine)').matches && !window.matchMedia('(prefers-reduced-motion: reduce)').matches){
+ const glow=document.createElement('div');glow.className='cursor-glow';document.body.appendChild(glow);
+ const dot=document.createElement('div');dot.className='cursor-dot';document.body.appendChild(dot);
+ let tx=innerWidth/2,ty=innerHeight/2,gx=tx,gy=ty,dx=tx,dy=ty,lastTrail=0;
+ addEventListener('mousemove',e=>{tx=e.clientX;ty=e.clientY;glow.classList.add('on');dot.classList.add('on');
+  const now=performance.now();
+  if(now-lastTrail>24){lastTrail=now;const s=document.createElement('div');s.className='trail-dot';const sz=3+Math.random()*4;s.style.width=s.style.height=sz+'px';s.style.left=tx+'px';s.style.top=ty+'px';s.style.background=Math.random()<.6?'#b9975b':'#1f3a5f';document.body.appendChild(s);setTimeout(()=>s.remove(),750);}
+ }, {passive:true});
+ document.addEventListener('mouseover',e=>{glow.classList.toggle('big',!!e.target.closest('a,button,summary,input,.card,.star-item'))});
+ document.addEventListener('mouseleave',()=>{glow.classList.remove('on');dot.classList.remove('on')});
+ (function loop(){gx+=(tx-gx)*.12;gy+=(ty-gy)*.12;dx+=(tx-dx)*.38;dy+=(ty-dy)*.38;glow.style.left=gx+'px';glow.style.top=gy+'px';dot.style.left=dx+'px';dot.style.top=dy+'px';requestAnimationFrame(loop)})();
+}
 </script>
 </body>
 </html>
