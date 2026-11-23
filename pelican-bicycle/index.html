@@ -1,0 +1,1044 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>鹈鹕骑自行车 · 代码动画工作室</title>
+  <style>
+    :root {
+      --bg: #0f172a;
+      --surface: #1e293b;
+      --surface-hover: #334155;
+      --border: rgba(148, 163, 184, 0.25);
+      --text: #f8fafc;
+      --muted: #94a3b8;
+      --primary: #2bb3a3;
+      --primary-text: #042f2e;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      min-height: 100vh;
+      display: grid;
+      place-items: center;
+      padding: 20px;
+      background: radial-gradient(circle at top, #1e293b 0%, #0b1120 75%);
+      color: var(--text);
+      font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+    }
+    .studio {
+      width: 100%;
+      max-width: 1080px;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+    .header {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: space-between;
+      align-items: baseline;
+      gap: 8px 12px;
+    }
+    .header h1 {
+      margin: 0;
+      font-size: 1.2rem;
+      font-weight: 700;
+    }
+    .header p {
+      margin: 0;
+      font-size: 0.85rem;
+      color: var(--muted);
+    }
+    .viewport {
+      position: relative;
+      width: 100%;
+      overflow: hidden;
+      border-radius: 16px;
+      border: 1px solid var(--border);
+      box-shadow: 0 24px 60px rgba(0, 0, 0, 0.45);
+    }
+    canvas {
+      display: block;
+      width: 100%;
+      height: auto;
+      aspect-ratio: 2 / 1;
+      cursor: pointer;
+      touch-action: manipulation;
+      user-select: none;
+      -webkit-user-select: none;
+    }
+    .hud-tl, .hud-tr {
+      position: absolute;
+      top: 12px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      pointer-events: none;
+    }
+    .hud-tl { left: 12px; }
+    .hud-tr {
+      right: 12px;
+      padding: 4px 12px;
+      border-radius: 999px;
+      background: rgba(0, 0, 0, 0.48);
+      backdrop-filter: blur(6px);
+      font: 600 12px/1.4 ui-monospace, SFMono-Regular, Menlo, monospace;
+      color: #fff;
+    }
+    .pill {
+      padding: 4px 12px;
+      border-radius: 999px;
+      background: rgba(0, 0, 0, 0.48);
+      backdrop-filter: blur(6px);
+      font-size: 12px;
+      color: rgba(255, 255, 255, 0.95);
+      transition: opacity 0.4s ease;
+    }
+    .pill-rec {
+      display: none;
+      align-items: center;
+      gap: 6px;
+      background: rgba(220, 38, 38, 0.92);
+      font-weight: 600;
+    }
+    .pill-rec.show { display: inline-flex; }
+    .rec-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: #fff;
+      animation: recPulse 0.9s ease-in-out infinite;
+    }
+    @keyframes recPulse {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.25; }
+    }
+    .toolbar {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: space-between;
+      align-items: center;
+      gap: 10px;
+    }
+    .group {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 8px;
+    }
+    button {
+      border: 1px solid var(--border);
+      background: var(--surface);
+      color: var(--text);
+      padding: 7px 12px;
+      border-radius: 10px;
+      font-size: 13px;
+      cursor: pointer;
+      transition: transform 0.12s ease, background 0.15s ease, border-color 0.15s ease;
+    }
+    button:hover { background: var(--surface-hover); }
+    button:active { transform: scale(0.96); }
+    button.primary {
+      background: var(--primary);
+      color: var(--primary-text);
+      border-color: transparent;
+      font-weight: 600;
+    }
+    button.primary:hover { filter: brightness(1.08); }
+    .seg {
+      display: inline-flex;
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      overflow: hidden;
+      background: var(--surface);
+    }
+    .seg button {
+      border: none;
+      border-radius: 0;
+      padding: 7px 11px;
+    }
+    .footer-bar {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      padding-top: 10px;
+      border-top: 1px solid var(--border);
+      font-size: 13px;
+      color: var(--muted);
+    }
+    .slider-wrap {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    input[type="range"] {
+      width: 210px;
+      accent-color: var(--primary);
+      cursor: pointer;
+    }
+  </style>
+</head>
+<body>
+  <main class="studio">
+    <div class="header">
+      <h1>🦢 鹈鹕骑自行车 · 纯代码 60fps 交互动画</h1>
+      <p>HTML5 Canvas 2D + 逆向运动学 (IK) 蹬车 + 物理围巾 + Web Audio 合成音效 + WebM 视频导出</p>
+    </div>
+
+    <div class="viewport">
+      <canvas id="stage" width="1280" height="640"></canvas>
+      <div class="hud-tl">
+        <span id="recBadge" class="pill pill-rec"><span class="rec-dot"></span><span id="recLabel">录制中 6.0s</span></span>
+        <span id="hintBadge" class="pill">点击鹈鹕抛鱼 · 点车把摇铃 · 点空白/空格翘头</span>
+      </div>
+      <div class="hud-tr">
+        <span id="speedReadout">22 km/h</span>
+        <span style="opacity:0.45">|</span>
+        <span id="distReadout">0.00 km</span>
+      </div>
+    </div>
+
+    <div class="toolbar">
+      <div class="group">
+        <button id="btnPlay"><span id="playIcon">⏸</span> <span id="playText">暂停</span></button>
+        <button id="btnBell">🔔 摇铃</button>
+        <button id="btnFish">🐟 抛鱼</button>
+        <button id="btnWheelie">🚀 翘头</button>
+        <button id="btnAuto">✨ 自动演出: 开</button>
+      </div>
+      <div class="group">
+        <div class="seg">
+          <button data-time="day" class="time-btn" title="海滨晴空">☀️</button>
+          <button data-time="sunset" class="time-btn" title="黄金日落">🌅</button>
+          <button data-time="night" class="time-btn" title="星空海岸">🌙</button>
+        </div>
+        <button id="btnSound"><span id="soundIcon">🔊</span></button>
+        <button id="btnRecord" class="primary">📹 导出 6 秒视频 (WebM)</button>
+      </div>
+    </div>
+
+    <div class="footer-bar">
+      <label class="slider-wrap">
+        <span>骑行速度</span>
+        <input id="speedSlider" type="range" min="0.35" max="2.4" step="0.05" value="1.05" />
+        <span id="cadenceLabel" style="color:var(--text);font-family:monospace;">1.05×</span>
+      </label>
+      <span id="statusText">海滨巡航中 · 60fps 矢量实时渲染</span>
+    </div>
+  </main>
+
+  <script>
+  (() => {
+    const canvas = document.getElementById('stage');
+    const ctx = canvas.getContext('2d');
+    const W = 1280, H = 640, ROAD_Y = 532, BIKE_X = 510, WHEEL_R = 66;
+
+    const btnPlay = document.getElementById('btnPlay');
+    const playIcon = document.getElementById('playIcon');
+    const playText = document.getElementById('playText');
+    const btnBell = document.getElementById('btnBell');
+    const btnFish = document.getElementById('btnFish');
+    const btnWheelie = document.getElementById('btnWheelie');
+    const btnAuto = document.getElementById('btnAuto');
+    const btnSound = document.getElementById('btnSound');
+    const soundIcon = document.getElementById('soundIcon');
+    const btnRecord = document.getElementById('btnRecord');
+    const recBadge = document.getElementById('recBadge');
+    const recLabel = document.getElementById('recLabel');
+    const hintBadge = document.getElementById('hintBadge');
+    const speedSlider = document.getElementById('speedSlider');
+    const cadenceLabel = document.getElementById('cadenceLabel');
+    const speedReadout = document.getElementById('speedReadout');
+    const distReadout = document.getElementById('distReadout');
+    const statusText = document.getElementById('statusText');
+    const timeBtns = Array.from(document.querySelectorAll('.time-btn'));
+
+    const PALETTES = {
+      day: {
+        skyTop: [74, 169, 245], skyMid: [148, 214, 255], skyBot: [228, 246, 255],
+        sunColor: [255, 244, 179], sunGlow: [255, 232, 130], sunY: 120, sunX: 980,
+        oceanFar: [45, 149, 209], oceanNear: [29, 128, 190], oceanGlint: [255, 252, 224],
+        hillFar: [95, 164, 152], hillNear: [74, 152, 114],
+        cloud: [255, 255, 255], cloudShade: [214, 232, 247],
+        road: [84, 94, 108], roadEdge: [122, 134, 148], sand: [244, 214, 162], grass: [84, 168, 96],
+        ambientDark: 0.0, starAlpha: 0.0, lampAlpha: 0.0
+      },
+      sunset: {
+        skyTop: [45, 38, 98], skyMid: [198, 86, 112], skyBot: [255, 176, 106],
+        sunColor: [255, 224, 138], sunGlow: [255, 132, 76], sunY: 256, sunX: 930,
+        oceanFar: [112, 66, 118], oceanNear: [76, 56, 104], oceanGlint: [255, 196, 112],
+        hillFar: [108, 66, 98], hillNear: [78, 52, 78],
+        cloud: [255, 198, 152], cloudShade: [176, 92, 116],
+        road: [72, 66, 82], roadEdge: [116, 96, 106], sand: [224, 162, 122], grass: [72, 92, 74],
+        ambientDark: 0.14, starAlpha: 0.35, lampAlpha: 0.45
+      },
+      night: {
+        skyTop: [10, 18, 44], skyMid: [20, 36, 78], skyBot: [38, 64, 112],
+        sunColor: [244, 248, 255], sunGlow: [152, 196, 255], sunY: 118, sunX: 960,
+        oceanFar: [16, 36, 72], oceanNear: [12, 28, 58], oceanGlint: [188, 224, 255],
+        hillFar: [22, 40, 68], hillNear: [18, 34, 52],
+        cloud: [62, 86, 128], cloudShade: [34, 50, 82],
+        road: [40, 46, 62], roadEdge: [66, 74, 94], sand: [76, 74, 88], grass: [24, 52, 56],
+        ambientDark: 0.36, starAlpha: 1.0, lampAlpha: 1.0
+      }
+    };
+
+    const lerp = (a, b, t) => a + (b - a) * t;
+    const clamp = (v, lo, hi) => Math.max(lo, Math.min(hi, v));
+    const lerpRGB = (c1, c2, t) => [Math.round(lerp(c1[0], c2[0], t)), Math.round(lerp(c1[1], c2[1], t)), Math.round(lerp(c1[2], c2[2], t))];
+    const rgbStr = (c, a = 1) => a === 1 ? `rgb(${c[0]},${c[1]},${c[2]})` : `rgba(${c[0]},${c[1]},${c[2]},${a})`;
+    const clonePalette = (p) => JSON.parse(JSON.stringify(p));
+    const blendPalette = (a, b, t) => {
+      const out = {};
+      for (const k of Object.keys(a)) out[k] = Array.isArray(a[k]) ? lerpRGB(a[k], b[k], t) : lerp(a[k], b[k], t);
+      return out;
+    };
+
+    let audioCtx = null, soundEnabled = true;
+    function ensureAudio() {
+      if (!soundEnabled) return null;
+      if (!audioCtx) {
+        const AC = window.AudioContext || window.webkitAudioContext;
+        if (AC) audioCtx = new AC();
+      }
+      if (audioCtx && audioCtx.state === 'suspended') audioCtx.resume().catch(() => {});
+      return audioCtx;
+    }
+    function playBellSFX() {
+      const ac = ensureAudio(); if (!ac) return;
+      const now = ac.currentTime;
+      [0, 0.14].forEach((offset) => {
+        [1568, 3136, 4712].forEach((f, idx) => {
+          const osc = ac.createOscillator(), g = ac.createGain();
+          osc.type = idx === 0 ? 'sine' : 'triangle';
+          osc.frequency.setValueAtTime(f, now + offset);
+          g.gain.setValueAtTime(0.0001, now + offset);
+          g.gain.linearRampToValueAtTime(0.11 / (idx + 1), now + offset + 0.008);
+          g.gain.exponentialRampToValueAtTime(0.0001, now + offset + 0.55 / (idx + 1));
+          osc.connect(g).connect(ac.destination);
+          osc.start(now + offset); osc.stop(now + offset + 0.6);
+        });
+      });
+    }
+    function playFishTossSFX() {
+      const ac = ensureAudio(); if (!ac) return;
+      const now = ac.currentTime, osc = ac.createOscillator(), g = ac.createGain();
+      osc.type = 'sine';
+      osc.frequency.setValueAtTime(340, now);
+      osc.frequency.exponentialRampToValueAtTime(860, now + 0.24);
+      g.gain.setValueAtTime(0.001, now);
+      g.gain.linearRampToValueAtTime(0.09, now + 0.04);
+      g.gain.exponentialRampToValueAtTime(0.001, now + 0.28);
+      osc.connect(g).connect(ac.destination);
+      osc.start(now); osc.stop(now + 0.3);
+    }
+    function playFishCatchSFX() {
+      const ac = ensureAudio(); if (!ac) return;
+      const now = ac.currentTime;
+      [523.25, 659.25, 783.99].forEach((f, i) => {
+        const osc = ac.createOscillator(), g = ac.createGain();
+        osc.type = 'triangle';
+        osc.frequency.setValueAtTime(f, now + i * 0.06);
+        g.gain.setValueAtTime(0.001, now + i * 0.06);
+        g.gain.linearRampToValueAtTime(0.09, now + i * 0.06 + 0.015);
+        g.gain.exponentialRampToValueAtTime(0.001, now + i * 0.06 + 0.2);
+        osc.connect(g).connect(ac.destination);
+        osc.start(now + i * 0.06); osc.stop(now + i * 0.06 + 0.22);
+      });
+    }
+    function playWheelieSFX() {
+      const ac = ensureAudio(); if (!ac) return;
+      const now = ac.currentTime, osc = ac.createOscillator(), g = ac.createGain(), filter = ac.createBiquadFilter();
+      osc.type = 'sawtooth'; filter.type = 'lowpass';
+      filter.frequency.setValueAtTime(420, now);
+      filter.frequency.exponentialRampToValueAtTime(1600, now + 0.28);
+      osc.frequency.setValueAtTime(150, now);
+      osc.frequency.exponentialRampToValueAtTime(420, now + 0.32);
+      g.gain.setValueAtTime(0.001, now);
+      g.gain.linearRampToValueAtTime(0.07, now + 0.06);
+      g.gain.exponentialRampToValueAtTime(0.001, now + 0.38);
+      osc.connect(filter).connect(g).connect(ac.destination);
+      osc.start(now); osc.stop(now + 0.4);
+    }
+
+    let currentTimeKey = 'sunset';
+    let fromPalette = clonePalette(PALETTES[currentTimeKey]);
+    let toPalette = clonePalette(PALETTES[currentTimeKey]);
+    let paletteT = 1;
+
+    const state = {
+      playing: true, t: 0, baseSpeed: 1.05, boostSpeed: 0, worldDist: 0,
+      wheelAngle: 0, pedalAngle: 0, chainPhase: 0,
+      blinkTimer: 2.2, blinkProgress: 0, beakOpen: 0, bellTimer: 0, bellRings: [],
+      wheelieTimer: 0, wheelieAngle: 0, wheelieVel: 0,
+      fish: { active: false, x: 0, y: 0, vx: 0, vy: 0, rot: 0, vrot: 0, caughtBounce: 0 },
+      autoShow: true, autoNextEvent: 3.0, autoStep: 0,
+      popups: [], particles: [],
+      hitHead: { x: 520, y: 280, r: 95 }, hitBell: { x: 562, y: 332, r: 44 }
+    };
+
+    const stars = Array.from({ length: 72 }, (_, i) => ({ x: (i * 197.3) % W, y: 16 + ((i * 89.7) % 245), r: 0.9 + (i % 3) * 0.65, phase: i * 0.8 }));
+    const clouds = [{ x: 140, y: 88, s: 1.05, spd: 12 }, { x: 480, y: 64, s: 0.85, spd: 9 }, { x: 840, y: 108, s: 1.2, spd: 15 }, { x: 1180, y: 76, s: 0.9, spd: 11 }];
+    const seagulls = [{ x: 260, y: 145, s: 0.9, phase: 0.2, spd: 32 }, { x: 760, y: 115, s: 0.72, phase: 2.1, spd: 26 }, { x: 1060, y: 170, s: 0.8, phase: 4.0, spd: 36 }];
+    const boats = [{ x: 320, y: 318, s: 0.78, color: '#fff8ee', stripe: '#e85d56' }, { x: 890, y: 312, s: 0.62, color: '#fef9e7', stripe: '#2a9d8f' }];
+
+    const spawnPopup = (text, x, y, color = '#ffffff') => state.popups.push({ text, x, y, vy: -42, life: 1.25, maxLife: 1.25, color });
+    function spawnDust(x, y, count = 6) {
+      for (let i = 0; i < count; i++) state.particles.push({ type: 'dust', x: x + (Math.random() - 0.5) * 14, y: y + (Math.random() - 0.5) * 6, vx: -90 - Math.random() * 110, vy: -20 - Math.random() * 48, r: 3 + Math.random() * 5, life: 0.45 + Math.random() * 0.35, maxLife: 0.8 });
+    }
+    function spawnSparkles(x, y, count = 10) {
+      for (let i = 0; i < count; i++) {
+        const ang = (Math.PI * 2 * i) / count + Math.random() * 0.3, spd = 60 + Math.random() * 95;
+        state.particles.push({ type: 'spark', x, y, vx: Math.cos(ang) * spd, vy: Math.sin(ang) * spd - 20, r: 2.5 + Math.random() * 2.5, life: 0.55 + Math.random() * 0.25, maxLife: 0.8, color: i % 2 === 0 ? '#ffe066' : '#74e4ff' });
+      }
+    }
+
+    let hintHidden = false;
+    function hideHint() { if (!hintHidden) { hintHidden = true; hintBadge.style.opacity = '0'; } }
+
+    function triggerBell(fromUser = true) {
+      if (fromUser) hideHint();
+      state.bellTimer = 0.65; state.beakOpen = Math.max(state.beakOpen, 0.52);
+      state.bellRings.push({ x: state.hitBell.x, y: state.hitBell.y, r: 8, alpha: 1 });
+      setTimeout(() => state.bellRings.push({ x: state.hitBell.x, y: state.hitBell.y, r: 8, alpha: 0.9 }), 130);
+      spawnPopup('叮铃铃! 🔔', state.hitBell.x + 18, state.hitBell.y - 26, '#fff3b0');
+      statusText.textContent = '叮铃铃！鹈鹕摇响了复古铜铃';
+      if (fromUser || soundEnabled) playBellSFX();
+    }
+    function triggerFishToss(fromUser = true) {
+      if (fromUser) hideHint();
+      if (state.fish.active) return;
+      const startX = state.hitHead.x + 56, startY = state.hitHead.y + 8;
+      Object.assign(state.fish, { active: true, x: startX, y: startY, vx: 28, vy: -445, rot: -0.5, vrot: 6.2 });
+      state.beakOpen = 0.85;
+      spawnSparkles(startX, startY, 8);
+      spawnPopup('抛鱼! 🐟', startX + 10, startY - 30, '#a8f0ff');
+      statusText.textContent = '绝活展示：喉囊抛鱼杂技！';
+      if (fromUser || soundEnabled) playFishTossSFX();
+    }
+    function triggerWheelie(fromUser = true) {
+      if (fromUser) hideHint();
+      state.wheelieTimer = 1.65; state.boostSpeed = 0.85;
+      spawnDust(BIKE_X - 118, ROAD_Y - 4, 10);
+      spawnPopup('翘头冲刺! 🚀', BIKE_X + 60, ROAD_Y - 265, '#ffd166');
+      statusText.textContent = '单轮翘头加速中！风把围巾吹起来了';
+      if (fromUser || soundEnabled) playWheelieSFX();
+    }
+    function setTimeOfDay(key, fromUser = true) {
+      if (key === currentTimeKey && paletteT >= 1) return;
+      fromPalette = blendPalette(fromPalette, toPalette, paletteT);
+      toPalette = clonePalette(PALETTES[key]); paletteT = 0; currentTimeKey = key;
+      updateTimeButtons();
+      if (fromUser) statusText.textContent = `切换场景：${{ day: '海滨晴空 ☀️', sunset: '黄金日落 🌅', night: '星空海岸 🌙' }[key]}`;
+    }
+    function updateTimeButtons() {
+      timeBtns.forEach((b) => {
+        const active = b.dataset.time === currentTimeKey;
+        b.style.background = active ? 'var(--primary)' : 'transparent';
+        b.style.color = active ? 'var(--primary-text)' : 'var(--text)';
+      });
+    }
+    function updateAutoButton() {
+      btnAuto.style.borderColor = state.autoShow ? 'var(--primary)' : 'var(--border)';
+      btnAuto.textContent = state.autoShow ? '✨ 自动演出: 开' : '✨ 自动演出: 关';
+    }
+    function solveIK(x0, y0, tx, ty, L1, L2, bendDir = -1) {
+      const dx = tx - x0, dy = ty - y0;
+      const d = clamp(Math.hypot(dx, dy), Math.abs(L1 - L2) + 0.5, L1 + L2 - 0.5);
+      const base = Math.atan2(dy, dx);
+      const a = Math.acos(clamp((L1 * L1 + d * d - L2 * L2) / (2 * L1 * d), -1, 1));
+      const ang = base + bendDir * a;
+      return { jx: x0 + Math.cos(ang) * L1, jy: y0 + Math.sin(ang) * L1 };
+    }
+
+    function drawBackground(pal) {
+      const skyG = ctx.createLinearGradient(0, 0, 0, 355);
+      skyG.addColorStop(0, rgbStr(pal.skyTop)); skyG.addColorStop(0.55, rgbStr(pal.skyMid)); skyG.addColorStop(1, rgbStr(pal.skyBot));
+      ctx.fillStyle = skyG; ctx.fillRect(0, 0, W, 360);
+
+      if (pal.starAlpha > 0.02) {
+        for (const s of stars) {
+          const tw = 0.45 + 0.55 * Math.sin(state.t * 2.4 + s.phase);
+          ctx.fillStyle = `rgba(255,252,235,${pal.starAlpha * tw})`;
+          ctx.beginPath(); ctx.arc(s.x, s.y, s.r, 0, Math.PI * 2); ctx.fill();
+        }
+      }
+      const sx = pal.sunX, sy = pal.sunY, glowR = currentTimeKey === 'night' ? 95 : 150;
+      const sg = ctx.createRadialGradient(sx, sy, 16, sx, sy, glowR);
+      sg.addColorStop(0, rgbStr(pal.sunColor, 0.92)); sg.addColorStop(0.35, rgbStr(pal.sunGlow, 0.42)); sg.addColorStop(1, rgbStr(pal.sunGlow, 0));
+      ctx.fillStyle = sg; ctx.beginPath(); ctx.arc(sx, sy, glowR, 0, Math.PI * 2); ctx.fill();
+      ctx.fillStyle = rgbStr(pal.sunColor); ctx.beginPath(); ctx.arc(sx, sy, currentTimeKey === 'night' ? 30 : 44, 0, Math.PI * 2); ctx.fill();
+      if (pal.starAlpha > 0.65) {
+        ctx.fillStyle = rgbStr(pal.skyTop, 0.88 * (pal.starAlpha - 0.5) * 2);
+        ctx.beginPath(); ctx.arc(sx + 12, sy - 6, 26, 0, Math.PI * 2); ctx.fill();
+      }
+      for (const c of clouds) drawCloud(c.x, c.y, c.s, pal);
+
+      const seaY = 304, seaH = 114;
+      const seaG = ctx.createLinearGradient(0, seaY, 0, seaY + seaH);
+      seaG.addColorStop(0, rgbStr(pal.oceanFar)); seaG.addColorStop(1, rgbStr(pal.oceanNear));
+      ctx.fillStyle = seaG; ctx.fillRect(0, seaY, W, seaH);
+      for (let i = 0; i < 11; i++) {
+        const y = seaY + 8 + i * 9, spread = 24 + i * 11, wobble = Math.sin(state.t * 3 + i * 1.1) * 14;
+        ctx.fillStyle = rgbStr(pal.oceanGlint, 0.48 - i * 0.032);
+        ctx.beginPath(); ctx.roundRect(sx - spread / 2 + wobble, y, spread, 3.2, 2); ctx.fill();
+      }
+      for (const b of boats) drawSailboat(b.x, b.y + Math.sin(state.t * 1.8 + b.x * 0.02) * 2, b.s, b.color, b.stripe);
+      drawFarCoastline(pal);
+
+      ctx.strokeStyle = rgbStr(pal.oceanGlint, 0.25); ctx.lineWidth = 2;
+      for (let row = 0; row < 4; row++) {
+        const y = seaY + 24 + row * 22, offset = (state.worldDist * (0.08 + row * 0.03)) % 180;
+        for (let x = -180; x < W + 180; x += 180) {
+          ctx.beginPath(); ctx.moveTo(x - offset, y); ctx.quadraticCurveTo(x - offset + 32, y - 4, x - offset + 64, y); ctx.stroke();
+        }
+      }
+      for (const g of seagulls) drawSeagull(g.x, g.y, g.s, state.t * 5.2 + g.phase, pal);
+
+      ctx.fillStyle = rgbStr(pal.sand); ctx.fillRect(0, 412, W, 42);
+      ctx.fillStyle = 'rgba(255,255,255,0.45)';
+      for (let x = -80; x < W + 80; x += 80) {
+        const ox = (state.worldDist * 0.28) % 80, wave = Math.sin(state.t * 2.5 + x * 0.04) * 3;
+        ctx.beginPath(); ctx.ellipse(x - ox, 413 + wave, 46, 5, 0, 0, Math.PI * 2); ctx.fill();
+      }
+      drawMidgroundProps(pal);
+      ctx.fillStyle = rgbStr(pal.grass); ctx.fillRect(0, 444, W, 24);
+      drawBoardwalkRailing(pal);
+      ctx.fillStyle = rgbStr(pal.roadEdge); ctx.fillRect(0, 464, W, 8);
+      ctx.fillStyle = rgbStr(pal.road); ctx.fillRect(0, 472, W, 128);
+      ctx.fillStyle = rgbStr(pal.grass); ctx.fillRect(0, 594, W, 46);
+
+      const dashSpacing = 128, dashOff = state.worldDist % dashSpacing;
+      ctx.fillStyle = 'rgba(255, 250, 232, 0.72)';
+      for (let x = -dashSpacing; x < W + dashSpacing; x += dashSpacing) {
+        ctx.beginPath(); ctx.roundRect(x - dashOff, 530, 62, 6, 3); ctx.fill();
+      }
+      const pebSpacing = 96, pebOff = state.worldDist % pebSpacing;
+      ctx.fillStyle = 'rgba(255,255,255,0.1)';
+      for (let i = -1; i < 16; i++) {
+        const px = i * pebSpacing - pebOff;
+        ctx.fillRect(px + 18, 496 + (i % 3) * 11, 14, 2.5);
+        ctx.fillRect(px + 54, 558 + ((i + 1) % 3) * 9, 10, 2.5);
+      }
+      const tuftSpacing = 140, tuftOff = (state.worldDist * 1.15) % tuftSpacing;
+      for (let i = -1; i < 12; i++) drawGrassTuft(i * tuftSpacing - tuftOff, 608, pal);
+    }
+
+    function drawCloud(x, y, s, pal) {
+      ctx.save(); ctx.translate(x, y); ctx.scale(s, s);
+      ctx.fillStyle = rgbStr(pal.cloudShade, 0.65);
+      ctx.beginPath(); ctx.arc(-28, 8, 22, 0, Math.PI * 2); ctx.arc(0, 5, 28, 0, Math.PI * 2); ctx.arc(30, 8, 21, 0, Math.PI * 2); ctx.fill();
+      ctx.fillStyle = rgbStr(pal.cloud, 0.92);
+      ctx.beginPath(); ctx.arc(-30, 2, 21, 0, Math.PI * 2); ctx.arc(-2, -6, 28, 0, Math.PI * 2); ctx.arc(28, 2, 20, 0, Math.PI * 2); ctx.fill();
+      ctx.restore();
+    }
+    function drawSailboat(x, y, s, sailColor, stripe) {
+      ctx.save(); ctx.translate(x, y); ctx.scale(s, s);
+      ctx.fillStyle = '#364958'; ctx.beginPath(); ctx.moveTo(-22, 0); ctx.lineTo(24, 0); ctx.lineTo(16, 8); ctx.lineTo(-17, 8); ctx.closePath(); ctx.fill();
+      ctx.strokeStyle = '#5c6b73'; ctx.lineWidth = 2; ctx.beginPath(); ctx.moveTo(0, 0); ctx.lineTo(0, -34); ctx.stroke();
+      ctx.fillStyle = sailColor; ctx.beginPath(); ctx.moveTo(2, -32); ctx.quadraticCurveTo(18, -16, 18, -3); ctx.lineTo(2, -3); ctx.closePath(); ctx.fill();
+      ctx.fillStyle = stripe; ctx.fillRect(2, -13, 14, 4);
+      ctx.fillStyle = 'rgba(255,255,255,0.85)'; ctx.beginPath(); ctx.moveTo(-2, -28); ctx.lineTo(-16, -4); ctx.lineTo(-2, -4); ctx.closePath(); ctx.fill();
+      ctx.restore();
+    }
+    function drawSeagull(x, y, s, flap, pal) {
+      ctx.save(); ctx.translate(x, y); ctx.scale(s, s);
+      const wing = Math.sin(flap) * 8;
+      ctx.strokeStyle = pal.ambientDark > 0.25 ? 'rgba(200,220,255,0.7)' : 'rgba(255,255,255,0.92)';
+      ctx.lineWidth = 2.6; ctx.lineCap = 'round';
+      ctx.beginPath(); ctx.moveTo(-14, wing); ctx.quadraticCurveTo(-7, -5 + wing * 0.2, 0, 1); ctx.quadraticCurveTo(7, -5 + wing * 0.2, 14, wing); ctx.stroke();
+      ctx.restore();
+    }
+    function drawFarCoastline(pal) {
+      const span = 1600, off = (state.worldDist * 0.06) % span;
+      for (let rep = -1; rep <= 1; rep++) {
+        const bx = rep * span - off;
+        ctx.fillStyle = rgbStr(pal.hillFar);
+        ctx.beginPath(); ctx.moveTo(bx + 60, 308); ctx.quadraticCurveTo(bx + 240, 232, bx + 440, 276); ctx.quadraticCurveTo(bx + 580, 298, bx + 720, 308); ctx.closePath(); ctx.fill();
+        ctx.fillStyle = rgbStr(pal.hillNear);
+        ctx.beginPath(); ctx.moveTo(bx + 920, 312); ctx.quadraticCurveTo(bx + 1120, 240, bx + 1320, 278); ctx.quadraticCurveTo(bx + 1440, 300, bx + 1540, 312); ctx.closePath(); ctx.fill();
+        const lx = bx + 1140, ly = 266;
+        if (pal.lampAlpha > 0.05) {
+          ctx.save(); ctx.translate(lx, ly - 50); ctx.rotate(Math.sin(state.t * 1.1) * 0.55);
+          const bg = ctx.createLinearGradient(0, 0, -240, 0);
+          bg.addColorStop(0, `rgba(255,244,175,${0.5 * pal.lampAlpha})`); bg.addColorStop(1, 'rgba(255,244,175,0)');
+          ctx.fillStyle = bg; ctx.beginPath(); ctx.moveTo(0, -4); ctx.lineTo(-240, -34); ctx.lineTo(-240, 34); ctx.lineTo(0, 4); ctx.closePath(); ctx.fill();
+          ctx.restore();
+        }
+        ctx.fillStyle = '#f8f9fa'; ctx.beginPath(); ctx.moveTo(lx - 9, ly); ctx.lineTo(lx - 6, ly - 48); ctx.lineTo(lx + 6, ly - 48); ctx.lineTo(lx + 9, ly); ctx.closePath(); ctx.fill();
+        ctx.fillStyle = '#e63946'; ctx.fillRect(lx - 8, ly - 18, 16, 8); ctx.fillRect(lx - 7, ly - 36, 14, 8);
+        ctx.fillStyle = pal.lampAlpha > 0.2 ? '#fff3a1' : '#a8dadc'; ctx.fillRect(lx - 5, ly - 55, 10, 7);
+        ctx.fillStyle = '#e63946'; ctx.beginPath(); ctx.moveTo(lx - 7, ly - 55); ctx.lineTo(lx, ly - 63); ctx.lineTo(lx + 7, ly - 55); ctx.closePath(); ctx.fill();
+      }
+    }
+    function drawMidgroundProps(pal) {
+      const span = 960, off = (state.worldDist * 0.42) % span;
+      for (let rep = -1; rep <= 2; rep++) {
+        const bx = rep * span - off;
+        drawPalmTree(bx + 150, 448, 1.05, 0.14, pal);
+        drawPalmTree(bx + 210, 450, 0.82, -0.18, pal);
+        drawSeasideCottage(bx + 540, 448, pal);
+        drawPalmTree(bx + 760, 448, 0.96, 0.1, pal);
+      }
+    }
+    function drawPalmTree(x, y, s, lean, pal) {
+      ctx.save(); ctx.translate(x, y); ctx.scale(s, s);
+      const topX = lean * 120 + Math.sin(state.t * 1.9 + x * 0.01) * 4, topY = -126;
+      ctx.strokeStyle = pal.ambientDark > 0.25 ? '#4a3a35' : '#8d6447'; ctx.lineWidth = 13; ctx.lineCap = 'round';
+      ctx.beginPath(); ctx.moveTo(0, 0); ctx.quadraticCurveTo(topX * 0.35, -62, topX, topY); ctx.stroke();
+      const fc = pal.ambientDark > 0.25 ? '#214d3d' : '#3a9b5f', fd = pal.ambientDark > 0.25 ? '#18382d' : '#2b7a4b';
+      [-2.6, -2.05, -1.4, -0.6, -0.05, 0.42].forEach((ang, idx) => {
+        ctx.save(); ctx.translate(topX, topY); ctx.rotate(ang + Math.sin(state.t * 2.2 + idx) * 0.04);
+        ctx.fillStyle = idx % 2 === 0 ? fc : fd;
+        ctx.beginPath(); ctx.moveTo(0, 0); ctx.quadraticCurveTo(28, -16, 56, 6); ctx.quadraticCurveTo(28, -3, 0, 4); ctx.closePath(); ctx.fill();
+        ctx.restore();
+      });
+      ctx.fillStyle = '#5c3a21'; ctx.beginPath(); ctx.arc(topX - 4, topY + 6, 5, 0, Math.PI * 2); ctx.arc(topX + 5, topY + 7, 5, 0, Math.PI * 2); ctx.fill();
+      ctx.restore();
+    }
+    function drawSeasideCottage(x, y, pal) {
+      ctx.save(); ctx.translate(x, y);
+      ctx.fillStyle = pal.ambientDark > 0.25 ? '#475569' : '#fff3e2'; ctx.fillRect(-34, -42, 68, 42);
+      ctx.fillStyle = pal.ambientDark > 0.25 ? '#7f3340' : '#e76f51';
+      ctx.beginPath(); ctx.moveTo(-42, -40); ctx.lineTo(0, -68); ctx.lineTo(42, -40); ctx.closePath(); ctx.fill();
+      ctx.fillStyle = pal.lampAlpha > 0.2 ? '#ffe169' : '#8ecae6'; ctx.fillRect(-20, -28, 16, 14); ctx.fillRect(6, -28, 16, 14);
+      ctx.fillStyle = '#2a9d8f'; ctx.fillRect(-7, -20, 14, 20);
+      ctx.restore();
+    }
+    function drawBoardwalkRailing(pal) {
+      const postGap = 110, off = (state.worldDist * 0.85) % postGap;
+      ctx.fillStyle = pal.ambientDark > 0.25 ? '#524b5c' : '#c9a27e';
+      ctx.fillRect(0, 444, W, 5); ctx.fillRect(0, 456, W, 4);
+      for (let x = -postGap; x < W + postGap; x += postGap) {
+        ctx.fillStyle = pal.ambientDark > 0.25 ? '#665d73' : '#b58963'; ctx.fillRect(x - off, 438, 8, 28);
+      }
+    }
+    function drawGrassTuft(x, y, pal) {
+      ctx.save(); ctx.translate(x, y);
+      ctx.strokeStyle = pal.ambientDark > 0.25 ? '#1b4332' : '#40916c'; ctx.lineWidth = 3; ctx.lineCap = 'round';
+      ctx.beginPath(); ctx.moveTo(0, 0); ctx.quadraticCurveTo(-8, -14, -14, -18); ctx.moveTo(0, 0); ctx.quadraticCurveTo(0, -16, 2, -22); ctx.moveTo(0, 0); ctx.quadraticCurveTo(9, -13, 15, -16); ctx.stroke();
+      ctx.restore();
+    }
+    function drawWheel(cx, cy, r, angle, hasCassette) {
+      ctx.save(); ctx.translate(cx, cy);
+      ctx.strokeStyle = '#22272e'; ctx.lineWidth = 11; ctx.beginPath(); ctx.arc(0, 0, r - 5, 0, Math.PI * 2); ctx.stroke();
+      ctx.strokeStyle = '#f4ecd8'; ctx.lineWidth = 3.5; ctx.beginPath(); ctx.arc(0, 0, r - 11.5, 0, Math.PI * 2); ctx.stroke();
+      ctx.strokeStyle = '#cbd5e1'; ctx.lineWidth = 2.5; ctx.beginPath(); ctx.arc(0, 0, r - 14.5, 0, Math.PI * 2); ctx.stroke();
+      ctx.save(); ctx.rotate(angle);
+      ctx.strokeStyle = 'rgba(226,232,240,0.85)'; ctx.lineWidth = 1.6;
+      for (let i = 0; i < 12; i++) {
+        const a = (i * Math.PI * 2) / 12;
+        ctx.beginPath(); ctx.moveTo(0, 0); ctx.lineTo(Math.cos(a) * (r - 15), Math.sin(a) * (r - 15)); ctx.stroke();
+      }
+      ctx.fillStyle = '#fb923c'; ctx.fillRect(r * 0.45, -3, 12, 6);
+      ctx.restore();
+      if (hasCassette) { ctx.fillStyle = '#64748b'; ctx.beginPath(); ctx.arc(0, 0, 12, 0, Math.PI * 2); ctx.fill(); }
+      ctx.fillStyle = '#e2e8f0'; ctx.beginPath(); ctx.arc(0, 0, 7, 0, Math.PI * 2); ctx.fill();
+      ctx.fillStyle = '#334155'; ctx.beginPath(); ctx.arc(0, 0, 3, 0, Math.PI * 2); ctx.fill();
+      ctx.restore();
+    }
+    function drawPedal(px, py, isNear) {
+      ctx.save(); ctx.translate(px, py);
+      ctx.fillStyle = isNear ? '#1e293b' : '#334155'; ctx.beginPath(); ctx.roundRect(-13, -4, 26, 8, 3); ctx.fill();
+      ctx.fillStyle = '#f59e0b'; ctx.fillRect(-7, -1.5, 14, 3);
+      ctx.restore();
+    }
+    function drawPelicanLeg(hipX, hipY, footX, footY, isNear) {
+      const { jx, jy } = solveIK(hipX, hipY, footX, footY, 72, 76, -1);
+      ctx.strokeStyle = isNear ? '#fff8ec' : '#e6dcc8'; ctx.lineWidth = 14; ctx.lineCap = 'round';
+      ctx.beginPath(); ctx.moveTo(hipX, hipY); ctx.lineTo(lerp(hipX, jx, 0.34), lerp(hipY, jy, 0.34)); ctx.stroke();
+      const legColor = isNear ? '#f5821f' : '#c96210', legShade = isNear ? '#d9690e' : '#a84f08';
+      ctx.strokeStyle = legShade; ctx.lineWidth = 10; ctx.lineJoin = 'round';
+      ctx.beginPath(); ctx.moveTo(lerp(hipX, jx, 0.25), lerp(hipY, jy, 0.25)); ctx.lineTo(jx, jy); ctx.lineTo(footX, footY - 4); ctx.stroke();
+      ctx.strokeStyle = legColor; ctx.lineWidth = 7.5;
+      ctx.beginPath(); ctx.moveTo(lerp(hipX, jx, 0.25), lerp(hipY, jy, 0.25)); ctx.lineTo(jx, jy); ctx.lineTo(footX, footY - 4); ctx.stroke();
+      ctx.save(); ctx.translate(footX, footY - 4); ctx.fillStyle = legColor; ctx.strokeStyle = legShade; ctx.lineWidth = 1.6;
+      ctx.beginPath(); ctx.moveTo(-10, 2); ctx.quadraticCurveTo(6, -6, 22, 1); ctx.quadraticCurveTo(17, 6, 12, 4); ctx.quadraticCurveTo(4, 6, -10, 4); ctx.closePath(); ctx.fill(); ctx.stroke();
+      ctx.restore();
+    }
+    function drawPelicanWing(shX, shY, targetX, targetY, isNear, flapMode) {
+      const { jx, jy } = solveIK(shX, shY, targetX, targetY, 44, 46, 1);
+      ctx.save();
+      const fillMain = isNear ? '#fdf7eb' : '#ddd3c0', fillTip = isNear ? '#475569' : '#334155', outline = isNear ? '#cbd5e1' : '#94a3b8';
+      ctx.lineCap = 'round'; ctx.lineJoin = 'round';
+      if (flapMode) {
+        ctx.translate(shX, shY); ctx.rotate(-0.65 + Math.sin(state.t * 20) * 0.45);
+        ctx.fillStyle = fillMain; ctx.strokeStyle = outline; ctx.lineWidth = 2;
+        ctx.beginPath(); ctx.moveTo(0, 0); ctx.quadraticCurveTo(-24, -48, -76, -34); ctx.quadraticCurveTo(-58, -10, -68, -2); ctx.quadraticCurveTo(-40, 8, -48, 16); ctx.quadraticCurveTo(-18, 22, 6, 12); ctx.closePath(); ctx.fill(); ctx.stroke();
+        ctx.fillStyle = fillTip; ctx.beginPath(); ctx.ellipse(-62, -24, 14, 6, -0.3, 0, Math.PI * 2); ctx.ellipse(-54, -10, 12, 5, -0.1, 0, Math.PI * 2); ctx.fill();
+      } else {
+        ctx.strokeStyle = outline; ctx.lineWidth = 22; ctx.beginPath(); ctx.moveTo(shX, shY); ctx.quadraticCurveTo(jx, jy + 4, targetX - 4, targetY); ctx.stroke();
+        ctx.strokeStyle = fillMain; ctx.lineWidth = 18; ctx.beginPath(); ctx.moveTo(shX, shY); ctx.quadraticCurveTo(jx, jy + 4, targetX - 4, targetY); ctx.stroke();
+        ctx.fillStyle = fillTip; ctx.beginPath(); ctx.ellipse(targetX - 3, targetY + 1, 11, 7, 0.2, 0, Math.PI * 2); ctx.fill();
+        ctx.strokeStyle = 'rgba(148,163,184,0.45)'; ctx.lineWidth = 2; ctx.beginPath(); ctx.moveTo(shX + 8, shY + 4); ctx.quadraticCurveTo(jx, jy + 9, targetX - 14, targetY + 2); ctx.stroke();
+      }
+      ctx.restore();
+    }
+    function drawScarf(nx, ny, speedFactor) {
+      ctx.save();
+      ctx.fillStyle = '#e63946'; ctx.beginPath(); ctx.ellipse(nx, ny, 16, 9, -0.15, 0, Math.PI * 2); ctx.fill();
+      ctx.strokeStyle = '#ffb703'; ctx.lineWidth = 2.5; ctx.beginPath(); ctx.moveTo(nx - 12, ny); ctx.quadraticCurveTo(nx, ny + 4, nx + 12, ny - 1); ctx.stroke();
+      const tailLen = 46 + speedFactor * 26, freq = 9 + speedFactor * 6, amp = 5 + speedFactor * 6;
+      for (let strand = 0; strand < 2; strand++) {
+        ctx.beginPath(); const yOff = strand * 7; ctx.moveTo(nx - 10, ny + yOff);
+        const pts = [];
+        for (let i = 1; i <= 8; i++) {
+          const frac = i / 8, x = nx - 10 - frac * tailLen;
+          const wave = Math.sin(state.t * freq - frac * 5.2 + strand * 1.3) * amp * frac;
+          pts.push([x, ny + yOff + wave - frac * speedFactor * 7]);
+        }
+        for (const p of pts) ctx.lineTo(p[0], p[1]);
+        ctx.strokeStyle = strand === 0 ? '#e63946' : '#c1121f'; ctx.lineWidth = strand === 0 ? 9 : 7; ctx.lineCap = 'round'; ctx.lineJoin = 'round'; ctx.stroke();
+        if (strand === 0) { const tip = pts[pts.length - 2]; ctx.fillStyle = '#ffb703'; ctx.beginPath(); ctx.arc(tip[0], tip[1], 3.5, 0, Math.PI * 2); ctx.fill(); }
+      }
+      ctx.restore();
+    }
+    function drawFish(x, y, rot, scale = 1) {
+      ctx.save(); ctx.translate(x, y); ctx.rotate(rot); ctx.scale(scale, scale);
+      ctx.fillStyle = '#38bdf8'; ctx.beginPath(); ctx.moveTo(-14, 0); ctx.lineTo(-24, -9); ctx.lineTo(-22, 0); ctx.lineTo(-24, 9); ctx.closePath(); ctx.fill();
+      const fg = ctx.createLinearGradient(0, -10, 0, 10); fg.addColorStop(0, '#0284c7'); fg.addColorStop(0.5, '#7dd3fc'); fg.addColorStop(1, '#f0f9ff');
+      ctx.fillStyle = fg; ctx.beginPath(); ctx.ellipse(0, 0, 16, 8.5, 0, 0, Math.PI * 2); ctx.fill();
+      ctx.fillStyle = '#0ea5e9'; ctx.beginPath(); ctx.moveTo(-4, -8); ctx.quadraticCurveTo(2, -14, 6, -7); ctx.closePath(); ctx.fill();
+      ctx.fillStyle = '#fff'; ctx.beginPath(); ctx.arc(9, -2, 3, 0, Math.PI * 2); ctx.fill();
+      ctx.fillStyle = '#0f172a'; ctx.beginPath(); ctx.arc(9.8, -2, 1.6, 0, Math.PI * 2); ctx.fill();
+      ctx.restore();
+    }
+
+    function drawBicycleAndPelican(pal) {
+      const rear = { x: -118, y: -WHEEL_R }, front = { x: 118, y: -WHEEL_R }, bb = { x: -24, y: -64 };
+      const seatTop = { x: -58, y: -152 }, saddle = { x: -62, y: -164 }, headTop = { x: 72, y: -164 }, headBot = { x: 83, y: -132 };
+      const stemTop = { x: 66, y: -196 }, grip = { x: 32, y: -194 }, bellPos = { x: 52, y: -200 }, lampPos = { x: 92, y: -154 };
+      const pedalNear = { x: bb.x + Math.cos(state.pedalAngle) * 30, y: bb.y + Math.sin(state.pedalAngle) * 30 };
+      const pedalFar = { x: bb.x + Math.cos(state.pedalAngle + Math.PI) * 30, y: bb.y + Math.sin(state.pedalAngle + Math.PI) * 30 };
+      const pedalingBob = Math.sin(state.pedalAngle * 2) * 2.8, roadBounce = Math.sin(state.t * 14) * 0.9 * clamp(state.baseSpeed, 0.5, 2);
+      const hip = { x: -56, y: -166 + pedalingBob }, shoulder = { x: -26, y: -186 + pedalingBob * 0.85 }, neckBase = { x: -14, y: -196 + pedalingBob * 0.8 };
+      const headCenter = { x: 6 + Math.sin(state.t * 3.5) * 2.5, y: -256 + pedalingBob * 0.7 + state.fish.caughtBounce * 6 };
+
+      ctx.save();
+      ctx.fillStyle = 'rgba(12,18,28,0.32)';
+      ctx.beginPath(); ctx.ellipse(BIKE_X - state.wheelieAngle * 30, ROAD_Y + 3, 175 * (1 + state.wheelieAngle * 0.35), 11, 0, 0, Math.PI * 2); ctx.fill();
+      ctx.restore();
+
+      ctx.save();
+      ctx.translate(BIKE_X, ROAD_Y + roadBounce);
+      ctx.translate(rear.x, rear.y); ctx.rotate(-state.wheelieAngle); ctx.translate(-rear.x, -rear.y);
+
+      const toWorld = (lx, ly) => {
+        const dx = lx - rear.x, dy = ly - rear.y, ca = Math.cos(-state.wheelieAngle), sa = Math.sin(-state.wheelieAngle);
+        return { x: BIKE_X + rear.x + dx * ca - dy * sa, y: ROAD_Y + roadBounce + rear.y + dx * sa + dy * ca };
+      };
+      const wh = toWorld(headCenter.x + 26, headCenter.y + 4), wb = toWorld(bellPos.x, bellPos.y);
+      state.hitHead.x = wh.x; state.hitHead.y = wh.y; state.hitBell.x = wb.x; state.hitBell.y = wb.y;
+
+      if (pal.lampAlpha > 0.05) {
+        const beamG = ctx.createLinearGradient(lampPos.x, lampPos.y, lampPos.x + 360, lampPos.y + 115);
+        beamG.addColorStop(0, `rgba(255,245,185,${0.52 * pal.lampAlpha})`); beamG.addColorStop(0.6, `rgba(255,238,160,${0.18 * pal.lampAlpha})`); beamG.addColorStop(1, 'rgba(255,238,160,0)');
+        ctx.fillStyle = beamG; ctx.beginPath(); ctx.moveTo(lampPos.x + 6, lampPos.y - 4); ctx.lineTo(lampPos.x + 390, lampPos.y + 42); ctx.lineTo(lampPos.x + 340, lampPos.y + 180); ctx.lineTo(lampPos.x + 4, lampPos.y + 8); ctx.closePath(); ctx.fill();
+      }
+
+      ctx.strokeStyle = '#64748b'; ctx.lineWidth = 6; ctx.lineCap = 'round';
+      ctx.beginPath(); ctx.moveTo(bb.x, bb.y); ctx.lineTo(pedalFar.x, pedalFar.y); ctx.stroke();
+      drawPedal(pedalFar.x, pedalFar.y, false);
+      drawPelicanLeg(hip.x - 4, hip.y + 2, pedalFar.x, pedalFar.y, false);
+      drawPelicanWing(shoulder.x + 10, shoulder.y - 2, grip.x + 8, grip.y - 3, false, false);
+
+      drawWheel(rear.x, rear.y, WHEEL_R, state.wheelAngle, true);
+      drawWheel(front.x, front.y, WHEEL_R, state.wheelAngle, false);
+
+      const frameColor = '#2bb3a3', frameDark = '#1d8a7e';
+      ctx.strokeStyle = frameDark; ctx.lineWidth = 7; ctx.lineCap = 'round';
+      ctx.beginPath(); ctx.arc(rear.x, rear.y, WHEEL_R + 6, Math.PI * 1.05, Math.PI * 1.72); ctx.stroke();
+      ctx.beginPath(); ctx.arc(front.x, front.y, WHEEL_R + 6, Math.PI * 1.24, Math.PI * 1.82); ctx.stroke();
+
+      ctx.save(); ctx.strokeStyle = '#334155'; ctx.lineWidth = 4; ctx.setLineDash([6, 4]); ctx.lineDashOffset = -state.chainPhase;
+      ctx.beginPath(); ctx.moveTo(rear.x, rear.y - 11); ctx.lineTo(bb.x, bb.y - 22); ctx.moveTo(bb.x, bb.y + 22); ctx.lineTo(rear.x, rear.y + 11); ctx.stroke(); ctx.restore();
+
+      const drawTube = (x1, y1, x2, y2, w = 8.5) => {
+        ctx.strokeStyle = frameDark; ctx.lineWidth = w + 2.5; ctx.beginPath(); ctx.moveTo(x1, y1); ctx.lineTo(x2, y2); ctx.stroke();
+        ctx.strokeStyle = frameColor; ctx.lineWidth = w; ctx.beginPath(); ctx.moveTo(x1, y1); ctx.lineTo(x2, y2); ctx.stroke();
+      };
+      drawTube(rear.x, rear.y, bb.x, bb.y, 6.5); drawTube(rear.x, rear.y, seatTop.x, seatTop.y, 6.5);
+      drawTube(bb.x, bb.y, seatTop.x, seatTop.y, 8.5); drawTube(bb.x, bb.y, headBot.x, headBot.y, 9);
+      ctx.strokeStyle = frameDark; ctx.lineWidth = 10.5; ctx.beginPath(); ctx.moveTo(seatTop.x, seatTop.y + 4); ctx.quadraticCurveTo(6, -168, headTop.x, headTop.y + 4); ctx.stroke();
+      ctx.strokeStyle = frameColor; ctx.lineWidth = 8; ctx.beginPath(); ctx.moveTo(seatTop.x, seatTop.y + 4); ctx.quadraticCurveTo(6, -168, headTop.x, headTop.y + 4); ctx.stroke();
+      drawTube(headTop.x, headTop.y, headBot.x, headBot.y, 10);
+      ctx.strokeStyle = frameDark; ctx.lineWidth = 9; ctx.beginPath(); ctx.moveTo(headBot.x, headBot.y); ctx.quadraticCurveTo(96, -98, front.x, front.y); ctx.stroke();
+      ctx.strokeStyle = frameColor; ctx.lineWidth = 6.5; ctx.beginPath(); ctx.moveTo(headBot.x, headBot.y); ctx.quadraticCurveTo(96, -98, front.x, front.y); ctx.stroke();
+
+      ctx.strokeStyle = '#cbd5e1'; ctx.lineWidth = 6; ctx.beginPath(); ctx.moveTo(seatTop.x, seatTop.y); ctx.lineTo(saddle.x + 2, saddle.y + 4); ctx.stroke();
+      ctx.fillStyle = '#8b4513'; ctx.strokeStyle = '#5c2d0c'; ctx.lineWidth = 2;
+      ctx.beginPath(); ctx.moveTo(saddle.x - 24, saddle.y + 2); ctx.quadraticCurveTo(saddle.x - 4, saddle.y - 10, saddle.x + 26, saddle.y + 1); ctx.quadraticCurveTo(saddle.x + 8, saddle.y + 9, saddle.x - 22, saddle.y + 8); ctx.closePath(); ctx.fill(); ctx.stroke();
+
+      ctx.strokeStyle = '#e2e8f0'; ctx.lineWidth = 6.5;
+      ctx.beginPath(); ctx.moveTo(headTop.x, headTop.y); ctx.lineTo(stemTop.x, stemTop.y); ctx.quadraticCurveTo(stemTop.x - 8, stemTop.y - 6, grip.x, grip.y); ctx.stroke();
+      ctx.strokeStyle = '#8b4513'; ctx.lineWidth = 9; ctx.beginPath(); ctx.moveTo(grip.x + 12, grip.y - 1); ctx.lineTo(grip.x - 6, grip.y + 1); ctx.stroke();
+
+      ctx.save(); ctx.translate(bellPos.x, bellPos.y); ctx.rotate(state.bellTimer > 0 ? Math.sin(state.t * 65) * 0.25 : 0);
+      ctx.fillStyle = '#f59e0b'; ctx.strokeStyle = '#b45309'; ctx.lineWidth = 1.6; ctx.beginPath(); ctx.arc(0, 0, 7.5, Math.PI, 0); ctx.closePath(); ctx.fill(); ctx.stroke();
+      ctx.fillStyle = '#fde68a'; ctx.beginPath(); ctx.arc(-2, -3.5, 2, 0, Math.PI * 2); ctx.fill(); ctx.restore();
+
+      ctx.save(); ctx.translate(lampPos.x, lampPos.y);
+      ctx.fillStyle = '#cbd5e1'; ctx.strokeStyle = '#64748b'; ctx.lineWidth = 1.6; ctx.beginPath(); ctx.ellipse(0, 0, 10, 7.5, 0.1, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
+      ctx.fillStyle = pal.lampAlpha > 0.15 ? '#fff3a1' : '#e0f2fe'; ctx.beginPath(); ctx.ellipse(8, 1, 3.2, 6, 0.1, 0, Math.PI * 2); ctx.fill(); ctx.restore();
+
+      ctx.save(); ctx.translate(bb.x, bb.y); ctx.rotate(state.pedalAngle);
+      ctx.fillStyle = '#cbd5e1'; ctx.strokeStyle = '#475569'; ctx.lineWidth = 2.5; ctx.beginPath(); ctx.arc(0, 0, 23, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
+      ctx.fillStyle = '#1e293b';
+      for (let i = 0; i < 5; i++) { const a = (i * Math.PI * 2) / 5; ctx.beginPath(); ctx.arc(Math.cos(a) * 13, Math.sin(a) * 13, 4.5, 0, Math.PI * 2); ctx.fill(); }
+      ctx.restore();
+
+      ctx.save(); ctx.translate(-92, -162 + pedalingBob); ctx.rotate(-0.28 + Math.sin(state.t * 8) * 0.04);
+      ctx.fillStyle = '#475569'; ctx.beginPath(); ctx.ellipse(-18, 2, 16, 6, -0.15, 0, Math.PI * 2); ctx.fill();
+      ctx.fillStyle = '#f8f1e4'; ctx.beginPath(); ctx.ellipse(-10, -4, 18, 8, 0.1, 0, Math.PI * 2); ctx.fill(); ctx.restore();
+
+      ctx.save(); ctx.translate(-48, -176 + pedalingBob); ctx.rotate(-0.26);
+      const bodyG = ctx.createRadialGradient(-6, -12, 8, 0, 0, 56);
+      bodyG.addColorStop(0, '#ffffff'); bodyG.addColorStop(0.7, '#faf3e6'); bodyG.addColorStop(1, '#e7dcc8');
+      ctx.fillStyle = bodyG; ctx.strokeStyle = '#d6c8b0'; ctx.lineWidth = 2; ctx.beginPath(); ctx.ellipse(0, 0, 52, 33, 0, 0, Math.PI * 2); ctx.fill(); ctx.stroke(); ctx.restore();
+
+      ctx.strokeStyle = '#d6c8b0'; ctx.lineWidth = 34; ctx.lineCap = 'round';
+      ctx.beginPath(); ctx.moveTo(neckBase.x, neckBase.y + 8); ctx.bezierCurveTo(neckBase.x - 16, neckBase.y - 24, headCenter.x - 18, headCenter.y + 24, headCenter.x - 2, headCenter.y + 8); ctx.stroke();
+      ctx.strokeStyle = '#fcf8f0'; ctx.lineWidth = 30;
+      ctx.beginPath(); ctx.moveTo(neckBase.x, neckBase.y + 8); ctx.bezierCurveTo(neckBase.x - 16, neckBase.y - 24, headCenter.x - 18, headCenter.y + 24, headCenter.x - 2, headCenter.y + 8); ctx.stroke();
+
+      drawScarf(neckBase.x - 4, neckBase.y - 12, state.baseSpeed + state.boostSpeed);
+
+      ctx.save();
+      ctx.translate(headCenter.x, headCenter.y);
+      ctx.rotate(state.fish.active ? -0.22 : (state.wheelieAngle * 0.28 + Math.sin(state.t * 4) * 0.03));
+
+      ctx.fillStyle = '#fcf8f0'; ctx.strokeStyle = '#d6c8b0'; ctx.lineWidth = 1.8;
+      ctx.beginPath(); ctx.moveTo(-12, -18); ctx.quadraticCurveTo(-30, -28, -36, -18); ctx.quadraticCurveTo(-24, -14, -32, -8); ctx.quadraticCurveTo(-18, -6, -12, -4); ctx.closePath(); ctx.fill(); ctx.stroke();
+      ctx.fillStyle = '#ffffff'; ctx.strokeStyle = '#d6c8b0'; ctx.lineWidth = 2; ctx.beginPath(); ctx.arc(0, 0, 23, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
+      ctx.fillStyle = 'rgba(251,146,128,0.35)'; ctx.beginPath(); ctx.ellipse(2, 7, 7, 4.5, 0, 0, Math.PI * 2); ctx.fill();
+
+      const openAng = state.beakOpen * 0.34, pouchJiggle = Math.sin(state.t * 15) * (1.8 + state.baseSpeed) + state.fish.caughtBounce * 8;
+      ctx.save(); ctx.translate(16, 4); ctx.rotate(openAng);
+      if (state.beakOpen > 0.04) {
+        ctx.fillStyle = '#c84b4b'; ctx.beginPath(); ctx.moveTo(0, -4); ctx.lineTo(80, 0); ctx.quadraticCurveTo(42, 22, 0, 14); ctx.closePath(); ctx.fill();
+      }
+      if (!state.fish.active) drawFish(42, -3 + state.beakOpen * 5, -0.35 + Math.sin(state.t * 9) * 0.12, 0.72);
+      const pouchG = ctx.createLinearGradient(0, 0, 0, 40);
+      pouchG.addColorStop(0, '#ffb703'); pouchG.addColorStop(0.55, '#fb8500'); pouchG.addColorStop(1, '#e85d04');
+      ctx.fillStyle = pouchG; ctx.strokeStyle = '#b45309'; ctx.lineWidth = 2;
+      ctx.beginPath(); ctx.moveTo(-4, 0); ctx.lineTo(86, 4); ctx.quadraticCurveTo(54, 44 + pouchJiggle, 18, 36 + pouchJiggle * 0.6); ctx.quadraticCurveTo(-2, 30, -10, 12); ctx.closePath(); ctx.fill(); ctx.stroke();
+      ctx.strokeStyle = 'rgba(255,243,176,0.55)'; ctx.lineWidth = 2.5;
+      ctx.beginPath(); ctx.moveTo(10, 18); ctx.quadraticCurveTo(36, 30 + pouchJiggle * 0.6, 62, 16); ctx.stroke();
+      ctx.restore();
+
+      ctx.save(); ctx.translate(15, -6); ctx.rotate(-openAng * 0.75);
+      const beakG = ctx.createLinearGradient(0, -10, 90, 10);
+      beakG.addColorStop(0, '#ffd166'); beakG.addColorStop(0.75, '#f77f00'); beakG.addColorStop(1, '#e63946');
+      ctx.fillStyle = beakG; ctx.strokeStyle = '#b45309'; ctx.lineWidth = 2;
+      ctx.beginPath(); ctx.moveTo(-2, -6); ctx.quadraticCurveTo(46, -12, 92, 4); ctx.quadraticCurveTo(97, 10, 90, 15); ctx.quadraticCurveTo(86, 10, 82, 9); ctx.lineTo(-2, 10); ctx.closePath(); ctx.fill(); ctx.stroke();
+      ctx.strokeStyle = 'rgba(255,255,255,0.5)'; ctx.lineWidth = 2; ctx.beginPath(); ctx.moveTo(6, -4); ctx.quadraticCurveTo(44, -8, 82, 3); ctx.stroke();
+      ctx.restore();
+
+      const eyeX = 6, eyeY = -5;
+      if (state.blinkProgress > 0.5) {
+        ctx.strokeStyle = '#1e293b'; ctx.lineWidth = 2.8; ctx.lineCap = 'round';
+        ctx.beginPath(); ctx.arc(eyeX, eyeY + 1, 5.5, Math.PI * 1.1, Math.PI * 1.9); ctx.stroke();
+      } else {
+        ctx.fillStyle = '#fde047'; ctx.beginPath(); ctx.arc(eyeX, eyeY, 8.5, 0, Math.PI * 2); ctx.fill();
+        ctx.fillStyle = '#ffffff'; ctx.beginPath(); ctx.arc(eyeX, eyeY, 6.5, 0, Math.PI * 2); ctx.fill();
+        let lookX = 2, lookY = 0;
+        if (state.fish.active) { const ang = Math.atan2(state.fish.y - state.hitHead.y, state.fish.x - state.hitHead.x); lookX = Math.cos(ang) * 2.5; lookY = Math.sin(ang) * 2.5; }
+        ctx.fillStyle = '#0f172a'; ctx.beginPath(); ctx.arc(eyeX + lookX, eyeY + lookY, 3.6, 0, Math.PI * 2); ctx.fill();
+        ctx.fillStyle = '#ffffff'; ctx.beginPath(); ctx.arc(eyeX + lookX + 1.2, eyeY + lookY - 1.3, 1.3, 0, Math.PI * 2); ctx.fill();
+      }
+      ctx.restore();
+
+      ctx.strokeStyle = '#e2e8f0'; ctx.lineWidth = 7; ctx.lineCap = 'round';
+      ctx.beginPath(); ctx.moveTo(bb.x, bb.y); ctx.lineTo(pedalNear.x, pedalNear.y); ctx.stroke();
+      ctx.fillStyle = '#475569'; ctx.beginPath(); ctx.arc(bb.x, bb.y, 6, 0, Math.PI * 2); ctx.fill();
+      drawPedal(pedalNear.x, pedalNear.y, true);
+      drawPelicanLeg(hip.x + 2, hip.y + 4, pedalNear.x, pedalNear.y, true);
+
+      let wingTargetX = grip.x - 2, wingTargetY = grip.y + 1;
+      if (state.bellTimer > 0.25) { wingTargetX = bellPos.x - 4; wingTargetY = bellPos.y - 6 + Math.sin((state.bellTimer - 0.25) * 24) * 6; }
+      drawPelicanWing(shoulder.x - 2, shoulder.y + 2, wingTargetX, wingTargetY, true, state.wheelieAngle > 0.14);
+      ctx.restore();
+    }
+
+    function drawEffects(pal) {
+      if (state.fish.active) drawFish(state.fish.x, state.fish.y, state.fish.rot, 1.0);
+      const totalSpeed = state.baseSpeed + state.boostSpeed;
+      if (totalSpeed > 1.35) {
+        ctx.strokeStyle = `rgba(255,255,255,${clamp((totalSpeed - 1.35) * 0.45, 0, 0.5)})`; ctx.lineWidth = 2; ctx.lineCap = 'round';
+        for (let i = 0; i < 6; i++) {
+          const lx = W - ((state.t * 950 + i * 247) % (W + 220)), ly = 150 + ((i * 73) % 310);
+          ctx.beginPath(); ctx.moveTo(lx, ly); ctx.lineTo(lx + 65 + totalSpeed * 22, ly); ctx.stroke();
+        }
+      }
+      for (const r of state.bellRings) {
+        ctx.strokeStyle = `rgba(255,238,130,${r.alpha})`; ctx.lineWidth = 2.6;
+        ctx.beginPath(); ctx.arc(r.x, r.y, r.r, -Math.PI * 0.85, Math.PI * 0.35); ctx.stroke();
+      }
+      for (const p of state.particles) {
+        const a = clamp(p.life / p.maxLife, 0, 1);
+        if (p.type === 'dust') {
+          ctx.fillStyle = `rgba(236,224,200,${a * 0.65})`; ctx.beginPath(); ctx.arc(p.x, p.y, p.r * (1.4 - a * 0.4), 0, Math.PI * 2); ctx.fill();
+        } else {
+          ctx.fillStyle = p.color; ctx.globalAlpha = a; ctx.beginPath(); ctx.arc(p.x, p.y, p.r, 0, Math.PI * 2); ctx.fill(); ctx.globalAlpha = 1;
+        }
+      }
+      for (const pop of state.popups) {
+        const a = clamp(pop.life / pop.maxLife, 0, 1);
+        ctx.save(); ctx.globalAlpha = a; ctx.font = 'bold 20px system-ui, -apple-system, sans-serif'; ctx.textAlign = 'center';
+        ctx.lineWidth = 4; ctx.strokeStyle = 'rgba(15,23,42,0.65)'; ctx.strokeText(pop.text, pop.x, pop.y);
+        ctx.fillStyle = pop.color; ctx.fillText(pop.text, pop.x, pop.y); ctx.restore();
+      }
+      if (pal.ambientDark > 0.01) {
+        ctx.fillStyle = currentTimeKey === 'night' ? `rgba(12,26,66,${pal.ambientDark * 0.35})` : `rgba(255,118,64,${pal.ambientDark * 0.25})`;
+        ctx.fillRect(0, 0, W, H);
+      }
+    }
+
+    function update(dt) {
+      state.t += dt;
+      if (paletteT < 1) paletteT = Math.min(1, paletteT + dt * 1.45);
+      state.boostSpeed = Math.max(0, state.boostSpeed - dt * 0.55);
+      const speedMult = state.baseSpeed + state.boostSpeed, groundPxPerSec = 250 * speedMult;
+      state.worldDist += groundPxPerSec * dt;
+      const dWheel = (groundPxPerSec * dt) / WHEEL_R;
+      state.wheelAngle += dWheel; state.pedalAngle += dWheel * 0.82; state.chainPhase += groundPxPerSec * dt * 0.42;
+
+      for (const c of clouds) { c.x -= (c.spd + groundPxPerSec * 0.04) * dt; if (c.x < -120) c.x = W + 120; }
+      for (const g of seagulls) { g.x -= (g.spd + groundPxPerSec * 0.06) * dt; if (g.x < -60) { g.x = W + 60 + Math.random() * 160; g.y = 85 + Math.random() * 110; } }
+      for (const b of boats) { b.x -= (8 + groundPxPerSec * 0.08) * dt; if (b.x < -80) b.x = W + 100; }
+
+      state.blinkTimer -= dt;
+      if (state.blinkTimer <= 0) { state.blinkProgress = 1; state.blinkTimer = 2.4 + Math.random() * 2.8; }
+      if (state.blinkProgress > 0) state.blinkProgress = Math.max(0, state.blinkProgress - dt * 6.5);
+      if (state.bellTimer > 0) state.bellTimer = Math.max(0, state.bellTimer - dt);
+
+      const targetBeak = state.fish.active ? (state.fish.vy > 0 ? 0.95 : 0.45) : (state.bellTimer > 0 ? 0.35 : 0);
+      state.beakOpen += (targetBeak - state.beakOpen) * Math.min(1, dt * 10);
+
+      if (state.wheelieTimer > 0) state.wheelieTimer -= dt;
+      const springForce = ((state.wheelieTimer > 0 ? 0.34 : 0) - state.wheelieAngle) * 42;
+      state.wheelieVel = (state.wheelieVel + springForce * dt) * Math.exp(-7.5 * dt);
+      const prevAngle = state.wheelieAngle;
+      state.wheelieAngle = Math.max(0, state.wheelieAngle + state.wheelieVel * dt);
+      if (prevAngle > 0.05 && state.wheelieAngle <= 0.01) spawnDust(BIKE_X + 118, ROAD_Y - 2, 6);
+
+      if (state.fish.active) {
+        const f = state.fish; f.vy += 980 * dt; f.x += f.vx * dt; f.y += f.vy * dt; f.rot += f.vrot * dt;
+        const catchX = state.hitHead.x + 56, catchY = state.hitHead.y + 8;
+        if (f.vy > 0) {
+          f.x += (catchX - f.x) * Math.min(1, dt * 5.2);
+          if (f.y >= catchY - 6) {
+            f.active = false; f.caughtBounce = 1.0;
+            spawnSparkles(catchX, catchY, 12); spawnPopup('稳稳接住! ✨', catchX + 12, catchY - 34, '#74f7c5');
+            statusText.textContent = '漂亮！鹈鹕一口稳稳接住了鲜鱼'; playFishCatchSFX();
+          }
+        }
+      }
+      if (state.fish.caughtBounce > 0) state.fish.caughtBounce = Math.max(0, state.fish.caughtBounce - dt * 3.8);
+      for (let i = state.bellRings.length - 1; i >= 0; i--) { const r = state.bellRings[i]; r.r += 78 * dt; r.alpha -= 1.6 * dt; if (r.alpha <= 0) state.bellRings.splice(i, 1); }
+      for (let i = state.particles.length - 1; i >= 0; i--) { const p = state.particles[i]; p.x += p.vx * dt; p.y += p.vy * dt; p.life -= dt; if (p.life <= 0) state.particles.splice(i, 1); }
+      for (let i = state.popups.length - 1; i >= 0; i--) { const pop = state.popups[i]; pop.y += pop.vy * dt; pop.life -= dt; if (pop.life <= 0) state.popups.splice(i, 1); }
+
+      if (state.autoShow) {
+        state.autoNextEvent -= dt;
+        if (state.autoNextEvent <= 0) {
+          const seq = state.autoStep % 4;
+          if (seq === 0) triggerBell(false);
+          else if (seq === 1) triggerFishToss(false);
+          else if (seq === 2) triggerWheelie(false);
+          else { const o = ['day', 'sunset', 'night']; setTimeOfDay(o[(o.indexOf(currentTimeKey) + 1) % o.length], false); }
+          state.autoStep++; state.autoNextEvent = 3.6;
+        }
+      }
+      speedReadout.textContent = `${Math.round(speedMult * 21)} km/h`;
+      distReadout.textContent = `${(state.worldDist / 4800).toFixed(2)} km`;
+    }
+
+    function render() {
+      const pal = blendPalette(fromPalette, toPalette, paletteT);
+      ctx.clearRect(0, 0, W, H);
+      drawBackground(pal);
+      drawBicycleAndPelican(pal);
+      drawEffects(pal);
+    }
+
+    let lastTs = performance.now();
+    function tick(now) {
+      const dt = Math.min(0.05, (now - lastTs) / 1000); lastTs = now;
+      if (state.playing) update(dt);
+      render();
+      requestAnimationFrame(tick);
+    }
+
+    let isRecording = false;
+    function startRecording() {
+      if (isRecording) return;
+      if (typeof canvas.captureStream !== 'function' || typeof MediaRecorder === 'undefined') {
+        statusText.textContent = '当前浏览器不支持 MediaRecorder 导出'; return;
+      }
+      hideHint(); if (!state.playing) togglePlay();
+      const stream = canvas.captureStream(60);
+      const mimeType = ['video/webm;codecs=vp9', 'video/webm;codecs=vp8', 'video/webm'].find((m) => MediaRecorder.isTypeSupported(m)) || '';
+      const recorder = mimeType ? new MediaRecorder(stream, { mimeType, videoBitsPerSecond: 6000000 }) : new MediaRecorder(stream);
+      const chunks = [];
+      recorder.ondataavailable = (e) => { if (e.data && e.data.size > 0) chunks.push(e.data); };
+      recorder.onstop = () => {
+        isRecording = false; recBadge.classList.remove('show');
+        btnRecord.disabled = false; btnRecord.textContent = '📹 导出 6 秒视频 (WebM)';
+        const blob = new Blob(chunks, { type: mimeType || 'video/webm' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a'); a.href = url; a.download = 'pelican-riding-bicycle.webm';
+        document.body.appendChild(a); a.click(); a.remove();
+        setTimeout(() => URL.revokeObjectURL(url), 5000);
+        statusText.textContent = `导出完成！pelican-riding-bicycle.webm (${(blob.size / 1024 / 1024).toFixed(2)} MB)`;
+      };
+      isRecording = true; btnRecord.disabled = true; btnRecord.textContent = '⏺ 录制中...'; recBadge.classList.add('show');
+      const durationMs = 6000, startAt = performance.now();
+      recorder.start(); statusText.textContent = '正在实时录制 6 秒 60fps 动画视频...';
+      setTimeout(() => triggerBell(false), 650);
+      setTimeout(() => triggerFishToss(false), 1850);
+      setTimeout(() => triggerWheelie(false), 3800);
+      const timer = setInterval(() => {
+        const left = Math.max(0, (durationMs - (performance.now() - startAt)) / 1000);
+        recLabel.textContent = `录制中 ${left.toFixed(1)}s`;
+        if (left <= 0) clearInterval(timer);
+      }, 100);
+      setTimeout(() => { clearInterval(timer); if (recorder.state !== 'inactive') recorder.stop(); }, durationMs);
+    }
+
+    function togglePlay() {
+      state.playing = !state.playing;
+      playIcon.textContent = state.playing ? '⏸' : '▶';
+      playText.textContent = state.playing ? '暂停' : '播放';
+    }
+    btnPlay.addEventListener('click', togglePlay);
+    btnBell.addEventListener('click', () => triggerBell(true));
+    btnFish.addEventListener('click', () => triggerFishToss(true));
+    btnWheelie.addEventListener('click', () => triggerWheelie(true));
+    btnAuto.addEventListener('click', () => { state.autoShow = !state.autoShow; updateAutoButton(); });
+    btnSound.addEventListener('click', () => { soundEnabled = !soundEnabled; soundIcon.textContent = soundEnabled ? '🔊' : '🔇'; if (soundEnabled) playBellSFX(); });
+    btnRecord.addEventListener('click', startRecording);
+    timeBtns.forEach((b) => b.addEventListener('click', () => { hideHint(); setTimeOfDay(b.dataset.time, true); }));
+    speedSlider.addEventListener('input', () => { state.baseSpeed = parseFloat(speedSlider.value); cadenceLabel.textContent = `${state.baseSpeed.toFixed(2)}×`; });
+    canvas.addEventListener('click', (e) => {
+      const r = canvas.getBoundingClientRect(), cx = ((e.clientX - r.left) / r.width) * W, cy = ((e.clientY - r.top) / r.height) * H;
+      if (Math.hypot(cx - state.hitBell.x, cy - state.hitBell.y) < state.hitBell.r) triggerBell(true);
+      else if (Math.hypot(cx - state.hitHead.x, cy - state.hitHead.y) < state.hitHead.r) triggerFishToss(true);
+      else triggerWheelie(true);
+    });
+    window.addEventListener('keydown', (e) => {
+      if (e.code === 'Space') { e.preventDefault(); triggerWheelie(true); }
+      else if (e.key === 'f' || e.key === 'F') triggerFishToss(true);
+      else if (e.key === 'b' || e.key === 'B') triggerBell(true);
+    });
+
+    updateTimeButtons(); updateAutoButton();
+    setTimeout(hideHint, 7500);
+    requestAnimationFrame(tick);
+  })();
+  </script>
+</body>
+</html>
