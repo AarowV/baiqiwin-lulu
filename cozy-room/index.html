@@ -1,0 +1,83 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no" />
+  <title>Cozy Game Room · 3D 空间漫游</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    html, body { width: 100%; height: 100%; overflow: hidden; background: #07080b; color: #f3e9dc;
+      font-family: "PingFang SC", "Microsoft YaHei", system-ui, sans-serif; user-select: none; }
+    #app canvas { display: block; outline: none; touch-action: none; }
+    .hud { position: fixed; z-index: 10; }
+    .top { top: 18px; left: 22px; right: 22px; display: flex; justify-content: space-between; align-items: center; pointer-events: none; }
+    .title { font-size: 18px; font-weight: 700; letter-spacing: .5px; text-shadow: 0 2px 12px rgba(0,0,0,.6); }
+    .title span { font-weight: 400; opacity: .65; margin-left: 8px; font-size: 14px; }
+    #back-home { pointer-events: auto; display: inline-block; margin-right: 12px; padding: 5px 12px; border-radius: 999px; font-size: 12px; font-weight: 500;
+      color: #f3e9dc; text-decoration: none; background: rgba(22,18,14,.55); border: 1px solid rgba(255,190,120,.25); backdrop-filter: blur(10px); vertical-align: middle; }
+    #back-home:hover { background: rgba(255,179,92,.25); }
+    @media (max-width: 600px) { .title { font-size: 15px; } .title span { display: none; } }
+    #rec-indicator { color: #ff5a5a; font-weight: 700; font-variant-numeric: tabular-nums; background: rgba(20,10,10,.55);
+      padding: 6px 12px; border-radius: 999px; backdrop-filter: blur(8px); animation: blink 1.2s infinite; }
+    @keyframes blink { 50% { opacity: .55; } }
+    .bar { left: 50%; bottom: 22px; transform: translateX(-50%); display: flex; gap: 6px; align-items: center; padding: 6px;
+      background: rgba(22,18,14,.55); border: 1px solid rgba(255,190,120,.18); border-radius: 16px; backdrop-filter: blur(14px);
+      box-shadow: 0 10px 40px rgba(0,0,0,.45); flex-wrap: wrap; justify-content: center; max-width: calc(100vw - 24px); }
+    .bar button { border: 0; background: transparent; color: #f3e9dc; font: inherit; font-size: 14px; padding: 9px 14px;
+      border-radius: 11px; cursor: pointer; transition: background .2s, color .2s; white-space: nowrap; }
+    .bar button:hover { background: rgba(255,255,255,.08); }
+    .bar button.active { background: linear-gradient(135deg, #ffb35c, #ff8a3d); color: #1d1208; font-weight: 700; }
+    .bar button.on { color: #ffd38a; }
+    .bar button.rec { color: #ff6b6b; font-weight: 700; }
+    .sep { width: 1px; height: 22px; background: rgba(255,255,255,.15); margin: 0 4px; }
+    .hint { left: 50%; bottom: 84px; transform: translateX(-50%); font-size: 13px; opacity: .8; text-shadow: 0 1px 8px rgba(0,0,0,.8);
+      pointer-events: none; text-align: center; white-space: nowrap; }
+    #walk-overlay { position: fixed; inset: 0; z-index: 9; display: flex; align-items: center; justify-content: center;
+      background: rgba(5,5,8,.35); cursor: pointer; font-size: 20px; text-align: center; line-height: 1.8; }
+    #walk-overlay small { font-size: 13px; opacity: .75; }
+    #walk-overlay[hidden] { display: none; }
+    #crosshair { position: fixed; left: 50%; top: 50%; width: 6px; height: 6px; margin: -3px 0 0 -3px; border-radius: 50%;
+      background: rgba(255,255,255,.7); z-index: 8; pointer-events: none; }
+    #crosshair[hidden] { display: none; }
+    #loading { position: fixed; inset: 0; z-index: 20; display: flex; align-items: center; justify-content: center; flex-direction: column; gap: 14px;
+      background: #07080b; transition: opacity .8s; font-size: 14px; letter-spacing: 2px; color: #ffb35c; }
+    #loading.done { opacity: 0; pointer-events: none; }
+    #loading .bar-l { width: 180px; height: 6px; border: 2px solid #ffb35c; border-radius: 6px; overflow: hidden; }
+    #loading .bar-l i { display: block; height: 100%; width: 98%; background: #ffb35c; animation: load 1.4s ease-in-out infinite alternate; }
+    @keyframes load { from { width: 20%; } to { width: 98%; } }
+  </style>
+  <script type="importmap">
+    { "imports": {
+      "three": "./vendor/three/build/three.module.js",
+      "three/addons/": "./vendor/three/examples/jsm/"
+    } }
+  </script>
+</head>
+<body>
+  <div id="app"></div>
+  <div id="loading"><div>LOADING...</div><div class="bar-l"><i></i></div></div>
+
+  <header class="hud top">
+    <div class="title"><a id="back-home" href="../">← Win Space</a>🎮 Cozy Game Room<span>3D 空间漫游</span></div>
+    <div id="rec-indicator" hidden>● REC <span id="rec-time">00:00</span></div>
+  </header>
+
+  <div id="hint" class="hud hint"></div>
+  <div id="crosshair" hidden></div>
+
+  <nav class="hud bar">
+    <button data-mode="tour" class="active" title="快捷键 1">🎬 自动漫游</button>
+    <button data-mode="orbit" title="快捷键 2">🖱️ 自由环视</button>
+    <button data-mode="walk" title="快捷键 3">🚶 第一人称</button>
+    <span class="sep"></span>
+    <button id="btn-light" title="快捷键 L">💡 主灯</button>
+    <button id="btn-rec" title="快捷键 R">⏺ 录制视频</button>
+  </nav>
+
+  <div id="walk-overlay" hidden>
+    <div>🖱️ 点击画面开始漫步<br /><small>WASD / 方向键 移动 · 鼠标 转视角 · Shift 加速 · Esc 释放鼠标</small></div>
+  </div>
+
+  <script type="module" src="./main.js"></script>
+</body>
+</html>

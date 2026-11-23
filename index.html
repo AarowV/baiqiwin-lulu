@@ -47,6 +47,9 @@ a{color:inherit;text-decoration:none}button,input,textarea{font:inherit}button{c
 .gr-empty{padding:14px;color:var(--muted);font-size:13px}
 .gr-count{font-size:11px;color:var(--muted);padding:4px 12px 8px}
 
+.grid-4{grid-template-columns:repeat(4,1fr)}
+@media(max-width:1000px){.grid-4{grid-template-columns:repeat(2,1fr)}}
+@media(max-width:600px){.grid-4{grid-template-columns:1fr}}
 </style>
 </head>
 <body>
@@ -73,7 +76,7 @@ a{color:inherit;text-decoration:none}button,input,textarea{font:inherit}button{c
  <section class="section">
   <div class="wrap">
    <div class="section-head"><div><div class="eyebrow">Explore</div><h2>这里有什么</h2></div><p>一个不断生长的个人空间。你可以把它当作博客、工具箱，也可以当作自己的数字档案。</p></div>
-   <div class="grid"><a class="card" href="#journal"><div class="icon">✎</div><h3>生活记录</h3><p>随笔、日常、旅行片段，以及值得留下来的瞬间。</p><div class="meta"><span>JOURNAL</span><span>↗</span></div></a><a class="card" href="#guides"><div class="icon">⌘</div><h3>科技教程</h3><p>软件安装、效率工具、网络配置与使用心得。</p><div class="meta"><span>GUIDES</span><span>↗</span></div></a><a class="card" href="./pelican-bicycle/"><div class="icon"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="5.5" cy="17.5" r="3.5"/><circle cx="18.5" cy="17.5" r="3.5"/><path d="M15 6a1 1 0 1 0 0-2 1 1 0 0 0 0 2zm-3 11.5V14l-3-3 4-3 2 3h2"/></svg></div><h3>鹈鹕骑自行车</h3><p>纯代码绘制的 60fps 海滨互动动画，点按可抛鱼、摇铃、翘头冲刺并导出视频。</p><div class="meta"><span>INTERACTIVE</span><span>立即体验 ↗</span></div></a></div>
+   <div class="grid grid-4"><a class="card" href="#journal"><div class="icon">✎</div><h3>生活记录</h3><p>随笔、日常、旅行片段，以及值得留下来的瞬间。</p><div class="meta"><span>JOURNAL</span><span>↗</span></div></a><a class="card" href="#guides"><div class="icon">⌘</div><h3>科技教程</h3><p>软件安装、效率工具、网络配置与使用心得。</p><div class="meta"><span>GUIDES</span><span>↗</span></div></a><a class="card" href="./pelican-bicycle/"><div class="icon"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="5.5" cy="17.5" r="3.5"/><circle cx="18.5" cy="17.5" r="3.5"/><path d="M15 6a1 1 0 1 0 0-2 1 1 0 0 0 0 2zm-3 11.5V14l-3-3 4-3 2 3h2"/></svg></div><h3>鹈鹕骑自行车</h3><p>纯代码绘制的 60fps 海滨互动动画，点按可抛鱼、摇铃、翘头冲刺并导出视频。</p><div class="meta"><span>INTERACTIVE</span><span>立即体验 ↗</span></div></a><a class="card" href="./cozy-room/"><div class="icon"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 10.5 12 3l9 7.5"/><path d="M5 9.5V21h14V9.5"/><path d="M9.5 21v-6h5v6"/></svg></div><h3>3D 游戏房漫游</h3><p>纯代码搭建的暖光游戏房：自动运镜、拖动环视、第一人称漫步，还能一键录成视频。</p><div class="meta"><span>INTERACTIVE · 3D</span><span>立即体验 ↗</span></div></a></div>
   </div>
  </section>
  <section class="section" id="journal">
@@ -152,7 +155,7 @@ if(window.matchMedia('(hover:hover) and (pointer:fine)').matches && !window.matc
 /* Global search on homepage: searches Stars + Bookmarks, shows a dropdown. */
 const globalSearch=document.getElementById('globalSearch'), globalResults=document.getElementById('globalResults');
 function collectGlobal(){
- const out=[{kind:'work',title:'鹈鹕骑自行车 · 代码互动动画',desc:'纯代码 60fps 海滨骑行交互动画 pelican bicycle 抛鱼 摇铃 翘头 视频导出',href:'./pelican-bicycle/',sameTab:true}];
+ const out=[{kind:'work',title:'鹈鹕骑自行车 · 代码互动动画',desc:'纯代码 60fps 海滨骑行交互动画 pelican bicycle 抛鱼 摇铃 翘头 视频导出',href:'./pelican-bicycle/',sameTab:true},{kind:'work',title:'3D 游戏房漫游 · 可交互空间',desc:'three.js 3D 房间 游戏房 电竞房 空间漫游 第一人称 自由环视 录制视频 cozy game room',href:'./cozy-room/',sameTab:true}];
  document.querySelectorAll('.star-item').forEach(it=>{const a=it.querySelector('a');if(!a)return;out.push({kind:'star',title:(it.querySelector('h4')||{}).textContent||a.textContent,desc:(it.querySelector('p')||{}).textContent||'',href:a.href})});
  return out;
 }
