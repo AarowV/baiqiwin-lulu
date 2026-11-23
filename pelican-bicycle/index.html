@@ -184,9 +184,13 @@
 <body>
   <main class="studio">
     <div class="header">
-      <h1>🦢 鹈鹕骑自行车 · 纯代码 60fps 交互动画</h1>
+      <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;">
+        <a id="backHome" href="../" style="display:none;text-decoration:none;color:var(--text);background:var(--surface);border:1px solid var(--border);padding:5px 11px;border-radius:999px;font-size:12px;">← 返回 Win Space</a>
+        <h1>🦢 鹈鹕骑自行车 · 纯代码 60fps 交互动画</h1>
+      </div>
       <p>HTML5 Canvas 2D + 逆向运动学 (IK) 蹬车 + 物理围巾 + Web Audio 合成音效 + WebM 视频导出</p>
     </div>
+    <script>if(location.protocol.startsWith('http'))document.getElementById('backHome').style.display='inline-flex';</script>
 
     <div class="viewport">
       <canvas id="stage" width="1280" height="640"></canvas>

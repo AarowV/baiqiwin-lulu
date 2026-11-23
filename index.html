@@ -73,7 +73,7 @@ a{color:inherit;text-decoration:none}button,input,textarea{font:inherit}button{c
  <section class="section">
   <div class="wrap">
    <div class="section-head"><div><div class="eyebrow">Explore</div><h2>这里有什么</h2></div><p>一个不断生长的个人空间。你可以把它当作博客、工具箱，也可以当作自己的数字档案。</p></div>
-   <div class="grid"><a class="card" href="#journal"><div class="icon">✎</div><h3>生活记录</h3><p>随笔、日常、旅行片段，以及值得留下来的瞬间。</p><div class="meta"><span>JOURNAL</span><span>↗</span></div></a><a class="card" href="#guides"><div class="icon">⌘</div><h3>科技教程</h3><p>软件安装、效率工具、网络配置与使用心得。</p><div class="meta"><span>GUIDES</span><span>↗</span></div></a></div>
+   <div class="grid"><a class="card" href="#journal"><div class="icon">✎</div><h3>生活记录</h3><p>随笔、日常、旅行片段，以及值得留下来的瞬间。</p><div class="meta"><span>JOURNAL</span><span>↗</span></div></a><a class="card" href="#guides"><div class="icon">⌘</div><h3>科技教程</h3><p>软件安装、效率工具、网络配置与使用心得。</p><div class="meta"><span>GUIDES</span><span>↗</span></div></a><a class="card" href="./pelican-bicycle/"><div class="icon"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="5.5" cy="17.5" r="3.5"/><circle cx="18.5" cy="17.5" r="3.5"/><path d="M15 6a1 1 0 1 0 0-2 1 1 0 0 0 0 2zm-3 11.5V14l-3-3 4-3 2 3h2"/></svg></div><h3>鹈鹕骑自行车</h3><p>纯代码绘制的 60fps 海滨互动动画，点按可抛鱼、摇铃、翘头冲刺并导出视频。</p><div class="meta"><span>INTERACTIVE</span><span>立即体验 ↗</span></div></a></div>
   </div>
  </section>
  <section class="section" id="journal">
@@ -152,7 +152,7 @@ if(window.matchMedia('(hover:hover) and (pointer:fine)').matches && !window.matc
 /* Global search on homepage: searches Stars + Bookmarks, shows a dropdown. */
 const globalSearch=document.getElementById('globalSearch'), globalResults=document.getElementById('globalResults');
 function collectGlobal(){
- const out=[];
+ const out=[{kind:'work',title:'鹈鹕骑自行车 · 代码互动动画',desc:'纯代码 60fps 海滨骑行交互动画 pelican bicycle 抛鱼 摇铃 翘头 视频导出',href:'./pelican-bicycle/',sameTab:true}];
  document.querySelectorAll('.star-item').forEach(it=>{const a=it.querySelector('a');if(!a)return;out.push({kind:'star',title:(it.querySelector('h4')||{}).textContent||a.textContent,desc:(it.querySelector('p')||{}).textContent||'',href:a.href})});
  return out;
 }
@@ -160,12 +160,13 @@ function renderGlobal(){
  const q=globalSearch.value.trim().toLowerCase();
  if(q.length<2){globalResults.hidden=true;globalResults.innerHTML='';return;}
  const all=collectGlobal(), hits=all.filter(x=>(x.title+' '+x.desc+' '+x.href).toLowerCase().includes(q));
- const stars=hits.filter(x=>x.kind==='star').slice(0,8);
+ const works=hits.filter(x=>x.kind==='work'), stars=hits.filter(x=>x.kind==='star').slice(0,8);
  const esc=s=>s.replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
- const dom=u=>{try{return new URL(u).hostname.replace(/^www\./,'')}catch(e){return ''}};
- const row=x=>`<a href="${esc(x.href)}" target="_blank" rel="noreferrer"><span>${esc(x.title)}</span><span class="gr-domain">${esc(dom(x.href))}</span></a>`;
+ const dom=u=>{try{return new URL(u,location.href).hostname.replace(/^www\./,'')}catch(e){return ''}};
+ const row=x=>x.sameTab?`<a href="${esc(x.href)}"><span>${esc(x.title)}</span><span class="gr-domain">本站互动 ↗</span></a>`:`<a href="${esc(x.href)}" target="_blank" rel="noreferrer"><span>${esc(x.title)}</span><span class="gr-domain">${esc(dom(x.href))}</span></a>`;
  globalResults.innerHTML = hits.length
   ? `<div class="gr-count">找到 ${hits.length} 个结果</div>`
+    + (works.length?`<h4>站内作品 · ${works.length}</h4>`+works.map(row).join(''):'')
     + (stars.length?`<h4>星标仓库 · ${stars.length}</h4>`+stars.map(row).join(''):'')
   : `<div class="gr-empty">没有找到“${esc(globalSearch.value.trim())}”，试试别的关键词。</div>`;
  globalResults.hidden=false;
